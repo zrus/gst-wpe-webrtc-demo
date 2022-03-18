@@ -47,7 +47,7 @@ impl Pipeline {
         let pipeline = gst::parse_launch(&format!(
             "webrtcbin name=webrtcbin stun-server=stun://stun2.l.google.com:19302 \
             compositor name=mixer sink_1::zorder=0 sink_1::height={height} sink_1::width={width} ! \
-            tee name=video-tee ! queue ! autovideosink name=video-sink \
+            tee name=video-tee ! queue ! gtkglsink enable-last-sample=0 name=sink qos=0 \
             rtspsrc location=rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mp4 ! \
             application/x-rtp, clock-rate=90000, encoding-name=H264, payload=96 ! rtpjitterbuffer ! \
             rtph264depay ! h264parse ! vaapih264dec ! queue ! videoconvert ! videoscale ! \
@@ -99,7 +99,7 @@ impl Pipeline {
         let settings = utils::load_settings();
         let webrtc_codec = settings.webrtc_codec_params();
         let bin_description = &format!(
-            "queue name=webrtc-vqueue ! autovideosrc ! videoconvert ! {encoder} ! {payloader} ! queue ! capsfilter name=webrtc-vsink caps=\"application/x-rtp,media=video,encoding-name={encoding_name},payload=96\"",
+            "queue name=webrtc-vqueue ! gldownload ! videoconvert ! {encoder} ! {payloader} ! queue ! capsfilter name=webrtc-vsink caps=\"application/x-rtp,media=video,encoding-name={encoding_name},payload=96\"",
             encoder=webrtc_codec.encoder, payloader=webrtc_codec.payloader,
             encoding_name=webrtc_codec.encoding_name
         );
