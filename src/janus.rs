@@ -418,6 +418,8 @@ impl JanusGateway {
         assert_eq!(json_msg.base.transaction, Some(transaction));
         let handle = json_msg.data.expect("no session id").id;
 
+        //===================================================================
+
         let transaction = transaction_id();
         let msg = WsMessage::Text(
             json!({

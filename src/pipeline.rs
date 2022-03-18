@@ -47,9 +47,10 @@ impl Pipeline {
         };
 
         let pipeline = gst::parse_launch(&format!(
-            "webrtcbin name=webrtcbin rtspsrc location=rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mp4 ! \
-            application/x-rtp, clock-rate=90000, encoding-name=H264, payload=96 ! rtpjitterbuffer ! rtph264depay ! h264parse ! \
-            vaapih264dec ! queue ! videoconvert ! videoscale ! video/x-raw,width={width},height={height} ! vaapih264enc ! rtph264pay ! \
+            "webrtcbin name=webrtcbin stun-server=stun://stun2.l.google.com:19302 \
+            rtspsrc location=rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mp4 ! queue ! \
+            capsfilter caps=\"application/x-rtp,pt=96,media=video\" ! rtph264depay ! h264parse ! vaapih264dec ! queue ! \
+            videoconvert ! videoscale ! video/x-raw,width={width},height={height} ! vaapih264enc ! rtph264pay config-interval=1 ! \
             application/x-rtp, payload=96 ! webrtcbin.
             ", width=width, height=height
         ))?;
