@@ -12,6 +12,8 @@ use crate::app::App;
 #[macro_use]
 extern crate log;
 
+const APPLICATION_NAME: &str = "janus-test";
+
 async fn async_main() -> Result<(), anyhow::Error> {
     gst::init()?;
     let app = App::new()?;
