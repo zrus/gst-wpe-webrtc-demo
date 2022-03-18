@@ -5,6 +5,8 @@ use std::error;
 use std::ops;
 use std::rc::{Rc, Weak};
 
+const STUN_SERVER: &str = "stun://stun.l.google.com:19302";
+
 // Our refcounted pipeline struct for containing all the media state we have to carry around.
 #[derive(Clone)]
 pub struct Pipeline(Rc<PipelineInner>);
@@ -45,13 +47,10 @@ impl Pipeline {
         };
 
         let pipeline = gst::parse_launch(&format!(
-            "webrtcbin name=webrtcbin stun-server=stun://stun2.l.google.com:19302 \
-            compositor name=mixer sink_1::zorder=0 sink_1::height={height} sink_1::width={width} ! \
-            tee name=video-tee ! gtkglsink enable-last-sample=0 name=sink qos=0 \
-            rtspsrc location=rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mp4 ! \
-            application/x-rtp, clock-rate=90000, encoding-name=H264, payload=96 ! rtpjitterbuffer ! \
-            rtph264depay ! h264parse ! vaapih264dec ! queue ! videoconvert ! videoscale ! \
-            video/x-raw,width=1280,height=720 ! queue ! mixer. \
+            "webrtcbin name=webrtcbin rtspsrc location=rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mp4 ! \
+            application/x-rtp, clock-rate=90000, encoding-name=H264, payload=96 ! rtpjitterbuffer ! rtph264depay ! h264parse ! \
+            vaapih264dec ! queue ! videoconvert ! videoscale ! video/x-raw,width={width},height={height} ! vaapih264enc ! rtph264pay ! \
+            application/x-rtp, payload=96 ! webrtcbin.
             ", width=width, height=height
         ))?;
 
@@ -60,6 +59,15 @@ impl Pipeline {
         let pipeline = pipeline
             .downcast::<gst::Pipeline>()
             .expect("Couldn't downcast pipeline");
+
+        // Get access to the webrtcbin by name
+        let webrtcbin = pipeline
+            .get_by_name("webrtcbin")
+            .expect("can't find webrtcbin");
+
+        // Set some properties on webrtcbin
+        webrtcbin.set_property_from_str("stun-server", STUN_SERVER);
+        webrtcbin.set_property_from_str("bundle-policy", "max-bundle");
 
         // Request that the pipeline forwards us all messages, even those that it would otherwise
         // aggregate first
@@ -96,51 +104,51 @@ impl Pipeline {
     }
 
     pub fn prepare(&self) -> Result<gst::StateChangeSuccess, gst::StateChangeError> {
-        let settings = utils::load_settings();
-        let webrtc_codec = settings.webrtc_codec_params();
-        let bin_description = &format!(
-            "queue name=webrtc-vqueue ! gldownload ! videoconvert ! {encoder} ! {payloader} ! queue ! capsfilter name=webrtc-vsink caps=\"application/x-rtp,media=video,encoding-name={encoding_name},payload=96\"",
-            encoder=webrtc_codec.encoder, payloader=webrtc_codec.payloader,
-            encoding_name=webrtc_codec.encoding_name
-        );
+        // let settings = utils::load_settings();
+        // let webrtc_codec = settings.webrtc_codec_params();
+        // let bin_description = &format!(
+        //     "queue name=webrtc-vqueue ! gldownload ! videoconvert ! {encoder} ! {payloader} ! queue ! capsfilter name=webrtc-vsink caps=\"application/x-rtp,media=video,encoding-name={encoding_name},payload=96\"",
+        //     encoder=webrtc_codec.encoder, payloader=webrtc_codec.payloader,
+        //     encoding_name=webrtc_codec.encoding_name
+        // );
 
-        let bin = gst::parse_bin_from_description(bin_description, false).unwrap();
-        bin.set_name("webrtc-vbin").unwrap();
+        // let bin = gst::parse_bin_from_description(bin_description, false).unwrap();
+        // bin.set_name("webrtc-vbin").unwrap();
 
-        let video_queue = bin
-            .get_by_name("webrtc-vqueue")
-            .expect("No webrtc-vqueue found");
-        let video_tee = self
-            .pipeline
-            .get_by_name("video-tee")
-            .expect("No video-tee found");
+        // let video_queue = bin
+        //     .get_by_name("webrtc-vqueue")
+        //     .expect("No webrtc-vqueue found");
+        // let video_tee = self
+        //     .pipeline
+        //     .get_by_name("video-tee")
+        //     .expect("No video-tee found");
 
-        self.pipeline
-            .add(&bin)
-            .expect("Failed to add recording bin");
+        // self.pipeline
+        //     .add(&bin)
+        //     .expect("Failed to add recording bin");
 
-        let srcpad = video_tee
-            .get_request_pad("src_%u")
-            .expect("Failed to request new pad from tee");
-        let sinkpad = video_queue
-            .get_static_pad("sink")
-            .expect("Failed to get sink pad from recording bin");
+        // let srcpad = video_tee
+        //     .get_request_pad("src_%u")
+        //     .expect("Failed to request new pad from tee");
+        // let sinkpad = video_queue
+        //     .get_static_pad("sink")
+        //     .expect("Failed to get sink pad from recording bin");
 
-        if let Ok(video_ghost_pad) = gst::GhostPad::new(Some("video_sink"), &sinkpad) {
-            bin.add_pad(&video_ghost_pad).unwrap();
-            srcpad.link(&video_ghost_pad).unwrap();
-        }
+        // if let Ok(video_ghost_pad) = gst::GhostPad::new(Some("video_sink"), &sinkpad) {
+        //     bin.add_pad(&video_ghost_pad).unwrap();
+        //     srcpad.link(&video_ghost_pad).unwrap();
+        // }
 
-        let webrtcbin = self.pipeline.get_by_name("webrtcbin").unwrap();
-        let sinkpad2 = webrtcbin.get_request_pad("sink_%u").unwrap();
-        let vsink = bin
-            .get_by_name("webrtc-vsink")
-            .expect("No webrtc-vqueue found");
-        let srcpad = vsink.get_static_pad("src").unwrap();
-        if let Ok(webrtc_ghost_pad) = gst::GhostPad::new(Some("webrtc_video_src"), &srcpad) {
-            bin.add_pad(&webrtc_ghost_pad).unwrap();
-            webrtc_ghost_pad.link(&sinkpad2).unwrap();
-        }
+        // let webrtcbin = self.pipeline.get_by_name("webrtcbin").unwrap();
+        // let sinkpad2 = webrtcbin.get_request_pad("sink_%u").unwrap();
+        // let vsink = bin
+        //     .get_by_name("webrtc-vsink")
+        //     .expect("No webrtc-vqueue found");
+        // let srcpad = vsink.get_static_pad("src").unwrap();
+        // if let Ok(webrtc_ghost_pad) = gst::GhostPad::new(Some("webrtc_video_src"), &srcpad) {
+        //     bin.add_pad(&webrtc_ghost_pad).unwrap();
+        //     webrtc_ghost_pad.link(&sinkpad2).unwrap();
+        // }
 
         self.pipeline.set_state(gst::State::Ready)
     }

@@ -12,8 +12,6 @@ use crate::app::App;
 #[macro_use]
 extern crate log;
 
-pub const APPLICATION_NAME: &str = "com.igalia.gstwpe.broadcast.demo";
-
 async fn async_main() -> Result<(), anyhow::Error> {
     gst::init()?;
     let app = App::new()?;
