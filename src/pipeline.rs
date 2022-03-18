@@ -47,7 +47,7 @@ impl Pipeline {
         let pipeline = gst::parse_launch(&format!(
             "webrtcbin name=webrtcbin stun-server=stun://stun2.l.google.com:19302 \
             compositor name=mixer sink_1::zorder=0 sink_1::height={height} sink_1::width={width} ! \
-            tee name=video-tee ! queue ! gtkglsink enable-last-sample=0 name=sink qos=0 \
+            tee name=video-tee ! gtkglsink enable-last-sample=0 name=sink qos=0 \
             rtspsrc location=rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mp4 ! \
             application/x-rtp, clock-rate=90000, encoding-name=H264, payload=96 ! rtpjitterbuffer ! \
             rtph264depay ! h264parse ! vaapih264dec ! queue ! videoconvert ! videoscale ! \
