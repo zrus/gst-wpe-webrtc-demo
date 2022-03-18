@@ -22,7 +22,7 @@ pub enum WebRTCCodec {
 
 impl Default for WebRTCCodec {
     fn default() -> Self {
-        WebRTCCodec::VP8
+        WebRTCCodec::H264
     }
 }
 

@@ -46,14 +46,14 @@ impl Pipeline {
 
         let pipeline = gst::parse_launch(&format!(
             "webrtcbin name=webrtcbin stun-server=stun://stun2.l.google.com:19302 \
-             glvideomixerelement name=mixer sink_1::zorder=0 sink_1::height={height} sink_1::width={width} \
-             ! tee name=video-tee ! queue ! gtkglsink enable-last-sample=0 name=sink qos=0 \
-             wpesrc location=http://127.0.0.1:3000 name=wpesrc draw-background=0 \
-             ! capsfilter name=wpecaps caps=\"video/x-raw(memory:GLMemory),width={width},height={height},pixel-aspect-ratio=(fraction)1/1\" ! glcolorconvert ! queue ! mixer. \
-             v4l2src name=videosrc ! capsfilter name=camcaps caps=\"image/jpeg,width={width},height={height},framerate=30/1\" !  queue ! jpegparse ! queue ! jpegdec ! videoconvert ! queue ! glupload ! glcolorconvert
-             ! queue ! mixer. \
-             ", width=width, height=height)
-        )?;
+            compositor name=mixer sink_1::zorder=0 sink_1::height={height} sink_1::width={width} ! \
+            tee name=video-tee ! queue ! autovideosink name=video-sink \
+            rtspsrc location=rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mp4 ! \
+            application/x-rtp, clock-rate=90000, encoding-name=H264, payload=96 ! rtpjitterbuffer ! \
+            rtph264depay ! h264parse ! vaapih264dec ! queue ! videoconvert ! videoscale ! \
+            video/x-raw,width=1280,height=720 ! queue ! mixer. \
+            ", width=width, height=height
+        ))?;
 
         // Upcast to a gst::Pipeline as the above function could've also returned an arbitrary
         // gst::Element if a different string was passed
@@ -99,7 +99,7 @@ impl Pipeline {
         let settings = utils::load_settings();
         let webrtc_codec = settings.webrtc_codec_params();
         let bin_description = &format!(
-            "queue name=webrtc-vqueue ! gldownload ! videoconvert ! {encoder} ! {payloader} ! queue ! capsfilter name=webrtc-vsink caps=\"application/x-rtp,media=video,encoding-name={encoding_name},payload=96\"",
+            "queue name=webrtc-vqueue ! autovideosrc ! videoconvert ! {encoder} ! {payloader} ! queue ! capsfilter name=webrtc-vsink caps=\"application/x-rtp,media=video,encoding-name={encoding_name},payload=96\"",
             encoder=webrtc_codec.encoder, payloader=webrtc_codec.payloader,
             encoding_name=webrtc_codec.encoding_name
         );
